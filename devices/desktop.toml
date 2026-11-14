@@ -1,0 +1,29 @@
+# Desktop - Primary gaming PC
+# Hostname auto-detection matches this device
+hostname = "Thallium"
+
+[GstRender]
+# 4K @ 240Hz primary monitor
+ResolutionWidth = 3840
+ResolutionHeight = 2160
+FullscreenRefreshRate = 240.084000
+FullscreenMode = 1                     # Exclusive fullscreen for lowest latency
+FullscreenEnabled = 1
+FullscreenScreen = 0                   # Primary monitor
+
+# NVIDIA DLAA (native-res AI AA - best image quality on powerful GPU)
+NvidiaUpscalingTechnique = 1
+NvidiaAntiAliasing = 2  # 2=DLAA; switch to 1=DLSS if need more FPS
+AMDNvidiaUpscalingQuality = 3  # Balanced preset (used when DLSS mode active)
+NvidiaLowLatency = 2  # Reflex On (set 2 for On+Boost in ranked)
+
+# Frame rate - currently uncapped (FrameRateLimiterEnable=0 in base)
+# TODO: Enable limiter at 237 for VRR sweet spot
+FrameRateLimit = 60.000000
+FrameRateLimitMenu = 240.000000
+FrameRateLimitTabbedOut = 15.000000
+
+[GstAudio]
+# Desktop headphones/speakers
+SpeakerDefault = 4
+SpeakerDetected = 4

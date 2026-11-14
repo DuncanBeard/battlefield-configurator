@@ -1,0 +1,228 @@
+# =============================================================================
+# [GstInput] — Mouse, controller, vehicle sensitivity, aim model
+# Zero FPS impact. Governs "feel" of aiming. Change one key at a time.
+# =============================================================================
+[GstInput]
+
+# --- Mouse ---
+MouseRawInput = 1                      # Bypass Windows acceleration — always on
+MouseSensitivity = 0.015000            # Mouse sens multiplier (combined with DPI)
+MouseSensitivityVehicle = 0.300000     # Mouse sens in vehicles
+FreelookSensitivity = 0.500000         # Freelook camera sensitivity
+
+# --- Aim Model ---
+# UniformSoldierAiming: 1=constant arc across all zoom levels, 0=per-scope feel
+# BF6 GamesRadar competitive guide recommends 0 — test with your scopes
+UniformSoldierAiming = 1
+UniformSoldierAimingCoefficient = 1.330000  # Monitor distance coefficient
+UniformVehicleAiming = 1
+UniformVehicleAimingCoefficient = 1.000000
+
+# --- Per-Zoom Sensitivity (only active when UniformSoldierAiming=0) ---
+SoldierZoomSensitivity1 = 1.000000
+SoldierZoomSensitivity1x00 = 1.000000
+SoldierZoomSensitivity1x25 = 1.000000
+SoldierZoomSensitivity1x50 = 1.000000
+SoldierZoomSensitivity1x75 = 1.000000
+SoldierZoomSensitivity2 = 1.000000
+SoldierZoomSensitivity2x00 = 1.000000
+SoldierZoomSensitivity2x50 = 1.000000
+SoldierZoomSensitivity3 = 1.000000
+SoldierZoomSensitivity3x00 = 1.000000
+SoldierZoomSensitivity3x50 = 1.000000
+SoldierZoomSensitivity4 = 1.000000
+SoldierZoomSensitivity4x00 = 1.000000
+SoldierZoomSensitivity4x50 = 1.000000
+SoldierZoomSensitivity5x00 = 1.000000
+SoldierZoomSensitivity6x00 = 1.000000
+SoldierZoomSensitivity7x00 = 1.000000
+SoldierZoomSensitivity8x00 = 1.000000
+SoldierZoomSensitivity10x00 = 1.000000
+SoldierZoomSensitivityAll = 1.000000   # Master scope-zoom scalar
+SmoothZoomInputSensitivity = 1         # Smooth zoom input
+
+# --- Vertical Sensitivity Ratios ---
+VerticalSoldierMouseRatio = 1.000000
+VerticalSoldierMouseZoomRatio = 1.000000
+VerticalSoldierStickRatio = 0.560000
+VerticalSoldierStickZoomRatio = 0.800000
+VerticalVehicleMouseRatio = 1.000000
+VerticalVehicleMouseZoomRatio = 0.800000
+VerticalVehicleStickRatio = 0.480000
+VerticalVehicleStickZoomRatio = 0.800000
+
+# --- Controller Deadzones ---
+GamepadLeftStickDeadzoneAxis = 0.060000    # Lower = more responsive, more drift risk
+GamepadLeftStickDeadzoneCenter = 0.080000
+GamepadLeftStickMaxThreshold = 1.000000
+GamepadLeftTriggerDeadzone = 0.000000
+GamepadLeftTriggerMaxThreshold = 1.000000
+GamepadRightStickDeadzoneAxis = 0.060000
+GamepadRightStickDeadzoneCenter = 0.080000
+GamepadRightStickMaxThreshold = 1.000000
+GamepadRightTriggerDeadzone = 0.000000
+GamepadRightTriggerMaxThreshold = 1.000000
+
+# --- Controller Aim Curves ---
+ControllerAccelerationPresets = 0
+ControllerAccelerationPresetsVehicle = 0
+ControllerAimingCurveSoldier = 0
+ControllerAimingCurveSoldierZoom = 0
+ControllerAimingCurveVehicle = 0
+ControllerAimingCurveVehicleZoom = 0
+StickAimingAccelerationAmount = 0.700000
+StickAimingAccelerationAmountVehicle = 0.500000
+
+# --- Controller Triggers (DualSense adaptive triggers) ---
+AdaptiveTriggerWeaponFireIntensity = 1.000000
+AdaptiveTriggerWeaponZoomIntensity = 1.000000
+
+# --- Flick Stick (gyro aiming alternative) ---
+FlickLookModeSoldier = 0
+FlickLookModeVehicle = 0
+FlickLookSpeedScaleSoldier = 1.000000
+FlickLookSpeedScaleVehicle = 1.000000
+FlickLookThresholdSoldier = 0.900000
+FlickLookThresholdVehicle = 0.900000
+
+# --- Gyro Aiming ---
+GyroDisabled = 0
+GyroAimingModeSoldier = 0
+GyroAimingModeVehicle = 0
+GyroButtonDisablesSoldier = 1          # Button disables gyro (vs enables)
+GyroButtonDisablesVehicle = 1
+
+# --- Joystick ---
+JoystickDeadzoneAxis = 0.150000
+JoystickDeadzoneCenter = 0.080000
+JoystickMaxThreshold = 1.000000
+JoystickSensitivity = 1.750000
+JoystickSensitivityVehicle = 1.000000
+
+# --- Sprint & Movement ---
+SprintHold = 1                         # Hold to sprint (vs toggle)
+SprintHoldConsole = 0
+SprintDoubleTap = 0                    # Double-tap to sprint
+SprintDoorBarge = 1                    # Barge through doors while sprinting
+SprintVaultOver = 1                    # Auto-vault while sprinting
+SprintReturnToStandFromCrouchToggle = 0
+AutoSprintOnFullStickHoldTime = 0.000000
+AutoSprintOnFullStickToggle = 0
+SlideDoubleTap = 0
+SlideOnCrouch = 0
+LandingRoll = 0
+
+# --- Lean ---
+LeanHold = 0                           # Hold to lean (vs toggle)
+LeaningEnabled = 0                     # Manual leaning enabled
+LeaningSensitivity = 0.500000
+
+# --- Interact & Reload ---
+HoldToggleInteractBehavior = 0
+ReloadInteractBehavior = 3             # Reload/interact priority behavior
+MountBreakout = 0                      # How to break weapon mount
+
+# --- Zoom/ADS ---
+HoldButtonToZoom = 1                   # Hold to ADS (vs toggle)
+HoldButtonToZoomVehicle = 1
+HoldForBreathControl = 1               # Hold breath while scoped
+
+# --- Grenade ---
+QuickThrowGrenade = 0                  # Quick throw (no arc preview)
+QuickThrowGrenadeController = 0
+
+# --- Melee ---
+BayonetHold = 0                        # Hold for bayonet charge
+
+# --- Vehicle Controls ---
+BoostHold = 1                          # Hold to boost in vehicles
+OptionAirplanePilotControl = 1         # Airplane control scheme
+OptionHelicopterAssist = 0             # Helicopter flight assist
+PlaneFreelookDecouple = 0             # Decouple freelook from flight
+VehicleAimRelativeControl = 0
+VehicleDecoupleAimingController = 0
+VehicleDecoupleAimingKeyboardAndMouse = 1  # Decouple turret aim from hull
+
+# --- Vehicle Sensitivity (per-type) ---
+VehicleSensitivityCavalry = 1.000000
+VehicleSensitivityDefaultTurret = 1.000000
+VehicleSensitivityFieldGun = 1.000000
+VehicleSensitivityHMGTurret = 1.000000
+VehicleSensitivityHeavyTurret = 1.000000
+VehicleSensitivityHelicopterPilot = 1.000000
+VehicleSensitivityPlanePilot = 1.000000
+VehicleSensitivityTank = 1.000000
+VehicleSensitivityTransport = 1.000000
+
+# --- Vibration (0 competitive — reduces fatigue, frees CPU thread) ---
+Vibration = 1
+VibrationInclusionPreset = 0
+VibrationIntensity = 1.000000
+VibrationDestructionInclusion = 1
+VibrationExplosionInclusion = 1
+VibrationHardwareActionsInclusion = 1
+VibrationIncomingDamageInclusion = 1
+VibrationScriptedSequenceInclusion = 1
+VibrationSoldierMovementInclusion = 1
+VibrationUserInterfaceInclusion = 1
+VibrationVehicleMovementInclusion = 1
+VibrationWeaponFireInclusion = 1
+
+# --- Misc ---
+HeadtrackingEnabled = 1                # Head tracking (TrackIR etc.)
+InputMethod = 0                        # 0=KB+M
+IsRightHanded = 1
+PcPadLayout = 0                        # Controller layout preset
+RequestReviveHold = 0
+SkipMandownHold = 1                    # Hold to skip revive
+
+# --- Controller Schemes (preset layouts) ---
+Scheme0Buttons = 0
+Scheme0FlipCameraY = 0
+Scheme0FlipY = 0
+Scheme0Sensitivity = 1.000000
+Scheme0Sticks = 0
+Scheme1Buttons = 0
+Scheme1FlipCameraY = 0
+Scheme1FlipY = 0
+Scheme1Sensitivity = 1.000000
+Scheme1Sticks = 0
+Scheme2Buttons = 0
+Scheme2FlipCameraY = 0
+Scheme2FlipY = 0
+Scheme2Sensitivity = 1.000000
+Scheme2Sticks = 0
+Scheme3Buttons = 0
+Scheme3FlipY = 0
+Scheme3Sensitivity = 1.000000
+Scheme3Sticks = 0
+Scheme4Buttons = 0
+Scheme4FlipY = 0
+Scheme4Sensitivity = 1.000000
+Scheme4Sticks = 0
+Scheme5Buttons = 0
+Scheme5FlipY = 0
+Scheme5Sensitivity = 1.000000
+Scheme5Sticks = 0
+SchemeAllFlipY = 0
+
+# --- Speech Recognition ---
+SpeechRecognitionDialect = 0
+SpeechRecognitionEnabled = 1
+SpeechRecognitionEnabledEnum = 0
+
+
+# =============================================================================
+# [GstKeyBinding] — All keybinds across default, helicopter, infantry contexts
+# =============================================================================
+# Format: <context>.<ActionName>.<slotIndex>.<field> = value
+#   context: default | helicopter | infantry
+#   slot: 0=primary, 1+=alternates
+#   field: type (0=Mouse, 1=Gamepad, 2=Keyboard/DIK, 3=Joystick, -1=Disabled)
+#          button (device-specific scancode; 255+type=2 means unbound)
+#          axis (analog axis index; 0 for digital)
+#          negate (0/1 — invert axis direction)
+#
+# 973 keys. Do not hand-edit unless you know DIK scancodes.
+# Rebind in-game, then use import.js to detect changes.
+# =============================================================================

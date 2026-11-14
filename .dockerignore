@@ -1,0 +1,27 @@
+# Build artifacts
+dist/
+node_modules/
+src-tauri/target/
+test-results/
+playwright-report/
+
+# Editor / OS
+.git/
+.gitignore
+.vscode/
+.svelte-kit/
+.DS_Store
+Thumbs.db
+
+# Local
+.device
+*.bak
+
+# Game artifacts not needed for web build
+PROFSAVE*
+SaveGameMetadata*.sav
+SP-Checkpoint*.sav
+steam_autocloud*.vdf
+
+# Tauri (not used by the web image)
+src-tauri/

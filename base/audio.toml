@@ -1,0 +1,86 @@
+# =============================================================================
+# [GstAudio] — Mixer, output, VOIP, accessibility
+# Zero CPU cost. Tune for competitive utility, not FPS.
+# =============================================================================
+[GstAudio]
+
+# --- Spatial Audio ---
+3dEnabled = 1                          # 3D positional audio
+Headphone_Width = 75.000000            # Stereo width for headphones (degrees)
+Stereo_Width = 90.000000               # Speaker stereo field width
+SoundSystemSize = 20                   # Room size simulation
+YourSoundSystem = 1                    # 0=Stereo, 1=Headphones, 2=5.1, 3=7.1
+
+# --- Audio Quality ---
+AudioQuality = 3                       # 0=Low, 1=Medium, 2=High, 3=Ultra (positional accuracy scales here)
+AudioLanguage = 0                      # Language index for VO
+
+# --- Master Volumes ---
+Volume = 1.000000                      # Master output
+Volume_Music = 0.100000                # In-game music (0.0 competitive — masks footsteps)
+Volume_MusicInMenus = 1.000000         # Menu music
+Volume_SFX = 1.000000                  # World/weapon SFX
+Volume_UI = 1.000000                   # Interface sounds
+Volume_VO = 1.000000                   # Voice-over volume
+Volume_VO-InWorld = 1.000000           # In-world VO (soldiers, callouts)
+Volume_Tinnitus = 0.000000             # Tinnitus/ringing effect after explosions
+Volume_Controller_Speaker = 1.000000   # Controller speaker volume (DualSense)
+Volume_Radio_Driver = 1.000000         # In-vehicle radio (driver)
+Volume_Radio_InWorld = 1.000000        # World radio sources
+Volume_Radio_Passenger = 1.000000      # In-vehicle radio (passenger)
+
+# --- Announcer & Narration ---
+Announcer_Voice = 0                    # Announcer voice variant
+InGameAnnouncer_OnOff = 1              # In-game announcer enabled
+HitIndicatorSound = 1                  # Audio hit marker style
+MenuNarration = 0                      # Menu narration (accessibility)
+
+# --- Music & Ambience ---
+CarRadio = 0                           # In-vehicle radio station enabled
+DiegeticMusic = 1                      # World music sources
+DiegeticRadio = 1                      # Environmental radio
+PlayMusicInMenus_OnOff = 1             # Music in menus
+PlaySoundInBackground_OnOff = 1        # Audio when game unfocused
+RadioStation = 0                       # Selected radio station
+
+# --- Speaker Config (device-specific — override in devices/*.toml) ---
+SpeakerConfiguration = 0              # Speaker layout
+SpeakerDefault = 4                    # Default speaker mode
+SpeakerDetected = 4                   # Detected speaker config
+StereoBalance = 0.000000              # L/R balance
+
+# --- Subtitles ---
+SubtitlesCommander = 1                 # Commander VO subtitles
+SubtitlesEnemies = 1                   # Enemy VO subtitles
+SubtitlesFriendlies = 1               # Friendly VO subtitles
+SubtitlesShowSpeakerName = 1          # Show who's speaking
+SubtitlesSquad = 1                     # Squad VO subtitles
+SubtitlesTextSize = 0                  # Subtitle font size
+
+# --- VOIP ---
+VoipOn = 0                             # VOIP master toggle
+VoipMode = 1                           # 1=Push-to-talk, 2=Open mic
+VoipChannel = 0  # Active voice channel
+VoipAutoLevel = 1                      # Auto-level mic gain
+VoipInputDevice = ""                   # Mic device (set in-game)
+VoipOutputDevice = ""                  # Output device (set in-game)
+VoipPosMode = 0                        # Positional VOIP
+VoipVolumeReductionAmount = 0.500000   # Game audio ducking during VOIP
+VOIPVolume = 1.000000                  # VOIP playback volume
+MicrophoneVolume = 0.500000            # Mic input gain
+OpenMicThreshold = 0.000000            # Open mic activation threshold
+OptionVOIPLowerGameAudio = 0.250000    # How much VOIP lowers game audio
+OptionVoipExternalOutputEnabled = 0    # Route VOIP to separate audio device
+
+# --- Accessibility ---
+Freq_Tinitus = 20000.000000            # Tinnitus frequency (Hz) — higher = less audible
+STTEnabled = 0                         # Speech-to-text
+TTSEnabled = 0                         # Text-to-speech
+MyTeamSpeaksMyLanguage = 0             # Force team VO to your language
+VOLanguage = 0                         # VO language override
+VOSubtitles = 0                        # VO subtitle language
+
+# --- UI Audio ---
+UISFXMixMode = 0                       # UI sound mix mode
+
+

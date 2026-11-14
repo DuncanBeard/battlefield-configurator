@@ -1,0 +1,22 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "verbatimModuleSyntax": true,
+    "types": [ "svelte", "vite/client", "bun" ],
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": [ "lib/*" ]
+    }
+  },
+  "include": [ "src/**/*", "lib/**/*", "cli/**/*", "vite.config.ts" ],
+  "exclude": [ "node_modules", "dist", "src-tauri/target" ]
+}

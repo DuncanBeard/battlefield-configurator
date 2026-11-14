@@ -1,0 +1,192 @@
+# =============================================================================
+# [GstRender] - Resolution, upscaling, frame pacing, quality sliders
+# THE section that matters for FPS. Grouped into logical buckets.
+# =============================================================================
+[GstRender]
+
+# --- Display & Resolution (device-specific - override in devices/*.toml) ---
+ResolutionWidth = 3840                 # Render width (native panel)
+ResolutionHeight = 2160                # Render height
+ResolutionHertz = 60.000000            # Display refresh rate
+ResolutionScale = 1.000000             # Resolution multiplier (1.0=native; use DLSS instead of <1.0)
+FixedResolutionScale = 100.000000  # Fixed res scale percentage
+FullscreenEnabled = 1                  # Any fullscreen mode on
+FullscreenMode = 1                     # 0=Borderless, 1=Exclusive (lower latency)
+FullscreenRefreshRate = 240.084000     # Target refresh rate
+FullscreenScreen = 0                   # Monitor index (0=primary)
+AspectRatio = 0                        # Auto aspect ratio
+WindowBordersEnable = 1                # Window borders in windowed mode
+
+# --- Frame Rate & V-Sync ---
+# CRITICAL: FutureFrameRendering=0 and VSyncMode=0 remove largest input lag sources
+FrameRateLimit = 240.000000  # Hard FPS cap (set ~3 below refresh for VRR)
+FrameRateLimitMenu = 240.000000  # Menu FPS cap (save power/heat)
+FrameRateLimitTabbedOut = 15.000000    # Alt-tabbed FPS cap
+FrameRateLimiterEnable = 0            # Toggle for FrameRateLimit
+FrameRateLimiterMenuEnable = 0        # Toggle for menu cap
+FrameRateLimiterTabbedOutEnable = 0   # Toggle for tabbed-out cap
+FutureFrameRendering = 0               # Pre-render queue (0=off, removes 16-33ms latency)
+VSyncMode = 0                          # 0=Off, 1=On, 2=Adaptive (always off with VRR)
+MaxVariableFps = 4                     # Variable FPS mode
+
+# --- Upscaling & Anti-Aliasing ---
+# NVIDIA path
+NvidiaAntiAliasing = 1  # 0=TAA, 1=DLSS (upscale+AA), 2=DLAA (native AI AA)
+NvidiaDLSSModel = 1                    # 0=CNN, 1=Transformer (DLSS 4, sharper)
+NvidiaDLAAModel = 1                    # Same for DLAA
+NvidiaUpscalingTechnique = 1  # Upscaling method
+AMDNvidiaUpscalingQuality = 2          # 0=Ultra Perf, 1=Perf, 2=Balanced, 3=Quality, 4=Ultra Quality
+
+# AMD/Intel path
+AMDIntelAntiAliasing = 1               # 0=TAA, 1=FSR, 2=XeSS
+AMDIntelUpscalingTechnique = 0         # AMD upscaling method
+IntelUpscalingQuality = 2              # Intel XeSS quality preset
+ConsoleAntiAlias = 1                   # Console AA fallback
+
+# --- Latency Reduction ---
+NvidiaLowLatency = 1  # NVIDIA Reflex (1=On, 2=On+Boost for competitive)
+AMDLowLatency = 1                      # AMD Anti-Lag equivalent
+IntelLowLatency = 1                    # Intel low latency
+
+# --- Frame Generation (adds displayed FPS but +8-15ms latency - off for competitive) ---
+FrameGeneration = 0                    # Generic frame gen toggle
+NVIDIAFrameGenerationEnabled = 0       # NVIDIA DLSS 3/4 Frame Gen
+AMDFrameGenerationEnabled = 0          # FSR 3 Frame Gen
+IntelFrameGenerationEnabled = 0        # Intel frame gen
+NvidiaMultiFrameGeneration = 0         # DLSS 4 Multi-Frame Gen (RTX 50 only)
+
+# --- Dynamic Resolution ---
+DRSEnabled = 0                         # Dynamic resolution scaling (drops res to hold FPS target)
+DRSFrameRateTarget = 240.000000        # FPS target for DRS
+DRSMinimumResolutionScale = 80.000000  # Lowest DRS will drop (percentage)
+
+# --- Overall Quality Preset ---
+OverallGraphicsQuality = 6             # -1=Custom, 0-4=Low-Insane presets
+PerformanceMode = 2                    # Performance mode selector
+
+# --- Lighting & Shadows ---
+# SunShadowQuality is the single biggest shadow FPS sink
+SunShadowQuality = 0  # 0=Low to 4=Insane (+1ms per step at 4K)
+ShadowQuality = 2                      # Generic shadow preset
+ShadowFiltering = 0  # Shadow filter quality
+LocalLightShadowQuality = 0  # Dynamic light shadows (lamps, muzzle flash)
+TransparentShadows = 1                 # Shadows through transparent objects
+LightingQuality = 0  # Indirect/volumetric lighting (0-3)
+Enlighten = 1                          # GI baked-lighting (Enlighten middleware)
+VolumetricQuality = 0  # Volumetric fog/lighting quality
+
+# --- Ambient Occlusion ---
+# 0=Off, 1=SSAO, 2=HBAO, 3=HDAO, 4=HBAO+ (2-6% FPS cost)
+AmbientOcclusion = 0
+RaytracingAmbientOcclusion = 0         # RT AO (only RT feature at launch - leave off)
+
+# --- Reflections ---
+ReflectionQuality = 0  # Reflection fidelity
+ScreenSpaceReflections = 0  # SSR quality (visible on wet surfaces, ~3% cost)
+
+# --- Textures & Meshes ---
+TextureQuality = 3                     # 0-3; pure VRAM cost, ~0% FPS with enough VRAM
+TextureFiltering = 0  # Anisotropic filtering (3=16x, ~1-2% cost)
+MeshQuality = 0  # LOD bias (4=Insane - keep high for spotting at range)
+ShaderQuality = 2.000000               # Shader complexity
+
+# --- Terrain & Vegetation ---
+TerrainQuality = 0  # Heightmap/detail tessellation
+UndergrowthQuality = 0  # Grass density & draw distance (0 competitive - hides enemies)
+SignificanceQuality = 0  # Object significance/LOD system
+
+# --- Effects ---
+EffectsQuality = 0  # Particle/explosion fidelity (smoke affects visibility)
+PostProcessQuality = 0  # Color grading, bloom, DoF preset
+
+# --- Post-Processing & Camera (all off for competitive clarity) ---
+MotionBlurWorld = 0.000000             # World motion blur
+MotionBlurWeapon = 0.000000            # Weapon motion blur
+FilmGrain = 0                          # Grain overlay - masks distant motion
+ChromaticAberration = 0                # Edge color fringing - hurts target acquisition
+Vignette = 0                           # Edge darkening
+LensDistortion = 1                     # Barrel distortion
+WeaponDOF = 0                          # Depth-of-field on ADS weapon model
+
+# --- Field of View ---
+FieldOfViewVertical = 89.000000        # Vertical FOV (degrees)
+FieldOfViewVerticalVehicle = 53.000000 # Vehicle FOV
+FieldOfViewScaleADS = 0                # Couple FOV to ADS (0=off, keeps muscle memory)
+FieldOfViewScaleHip = 1                # Hip FOV scaling
+
+# --- Sharpening ---
+SharpnessSlider = 1.000000             # Post-process sharpening (0-1)
+
+# --- HDR ---
+HighDynamicRangeMode = 0               # 0=SDR, 1=HDR (only on real HDR1000+ panels)
+DisplayMappingHdr10PeakLuma = 10000.000000  # HDR peak luminance (nits)
+
+# --- Brightness & Color ---
+Brightness = 0.500000                  # Display brightness
+Contrast = 0.500000                    # Display contrast
+UIBrightness = 0.500000                # UI brightness
+ColorBlindMode = 0                     # Color blind assist mode
+
+# --- HUD Colors (RGBA packed as signed int32) ---
+HUD-Accent = -493867777
+HUD-ArmorHard = 1729167359
+HUD-ArmorSoft = 932249599
+HUD-Enemy = -165407745
+HUD-Friendly = 428208383
+HUD-Neutral = 1820760831
+HUD-Player = 2111138815
+HUD-Primary = 1820760831
+HUD-Squad = 1171859455
+HUD-Warning = -165407745
+
+# --- HUD Options ---
+CrosshairThickness = 0                 # Crosshair line thickness
+HitDamageNumberSize = 2                # Damage number font size
+OptionHudBackgroundOpacity = 0.500000  # HUD element background opacity
+HighResUIScaleFactor = 0.500000        # UI scale at high resolutions
+PerformanceOverlay = 0                 # Built-in FPS overlay
+PerformanceOverlayEnum = 1             # Overlay detail level
+
+# --- Subtitles (render) ---
+SubtitleBackgroundAlpha = 0.000000     # Subtitle background opacity
+SubtitleTextAlpha = 0.800000           # Subtitle text opacity
+SubtitleUseOutline = 1                 # Outline around subtitle text
+
+# --- Stereoscopy (legacy - always off) ---
+Stereoscopy = 0
+StereoConvergence = 1.000000
+
+# --- Misc Render ---
+Dx12Enabled = 1                        # DirectX 12 (always on)
+ClampGpuMemory = 0                     # VRAM limit override
+VramEnabled = 0                        # VRAM budget enforcement
+ScreenSafeAreaHeight = 1.000000        # Safe area (for TVs)
+ScreenSafeAreaWidth = 1.000000
+uiUpscaling = 0                        # UI-specific upscaling
+
+# --- Shader Cache (engine-managed - never edit) ---
+ShaderBundleVersion_10100493193730314825 = -983757244
+ShaderBundleVersion_10378942354692638505 = -11577090
+ShaderBundleVersion_11264438781339060704 = 1314247301
+ShaderBundleVersion_11658152484220443680 = 1245827777
+ShaderBundleVersion_11731825097222042368 = 2088332441
+ShaderBundleVersion_11780607875671577120 = 1000653419
+ShaderBundleVersion_12432092428071841961 = -1367853939
+ShaderBundleVersion_14083995496400493161 = 1095168627
+ShaderBundleVersion_14305711959494647584 = 1016973263
+ShaderBundleVersion_16025492707465670176 = -1779825390
+ShaderBundleVersion_17008091276917178825 = -917947130
+ShaderBundleVersion_17544879817576072201 = 1493307867
+ShaderBundleVersion_18267533999902072937 = 372233548
+ShaderBundleVersion_2339686868854151593 = -1331403740
+ShaderBundleVersion_2622063622032103543 = -321927645
+ShaderBundleVersion_3488596634058113449 = 1398677191
+ShaderBundleVersion_5094147742104351680 = 2114042528
+ShaderBundleVersion_6493462658347259232 = 1069461258
+ShaderBundleVersion_6602034669106224233 = 1926277986
+ShaderBundleVersion_726905356160346217 = 550707010
+ShaderBundleVersion_7517112694433562924 = -359747261
+ShaderBundleVersion_8408422907555237399 = -1366457721
+ShaderBundleVersion_9135779890508874934 = -470737395
+ShaderBundleVersion_9366137367385211081 = 863785238
+ShaderBundleVersion_9712618178988428265 = 344977286

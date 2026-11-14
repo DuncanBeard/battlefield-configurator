@@ -1,0 +1,19 @@
+# Laptop - Lower power, smaller display
+hostname = ""
+
+[GstRender]
+# 1080p @ 60Hz laptop panel
+ResolutionWidth = 1920
+ResolutionHeight = 1080
+FullscreenRefreshRate = 60.000000
+FullscreenMode = 1
+FullscreenEnabled = 1
+FullscreenScreen = 0
+
+# Frame rate capped to panel refresh
+FrameRateLimit = 60.000000
+FrameRateLimitMenu = 30.000000         # Save battery in menus
+
+# Use DLSS Performance for more headroom on weaker GPU
+NvidiaAntiAliasing = 1                 # DLSS upscaling
+AMDNvidiaUpscalingQuality = 1          # Performance preset (720p internal)

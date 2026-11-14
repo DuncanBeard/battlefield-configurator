@@ -1,0 +1,8 @@
+services:
+  web:
+    build: .
+    image: bf6-configurator:latest
+    container_name: bf6-configurator
+    ports:
+      - "8080:80"
+    restart: unless-stopped

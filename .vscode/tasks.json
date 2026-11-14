@@ -1,0 +1,67 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "web: dev",
+      "type": "shell",
+      "command": "bun run dev",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "web: build",
+      "type": "shell",
+      "command": "bun run build",
+      "group": "build",
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "desktop: dev",
+      "type": "shell",
+      "command": "bun run tauri:dev",
+      "group": "build",
+      "isBackground": true,
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "desktop: build",
+      "type": "shell",
+      "command": "bun run tauri:build",
+      "group": "build",
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "cli: build",
+      "type": "shell",
+      "command": ".\\build.ps1",
+      "args": [ "-Device", "desktop" ],
+      "group": "build",
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "cli: import",
+      "type": "shell",
+      "command": ".\\import.ps1",
+      "args": [ "-Device", "desktop" ],
+      "group": "build",
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "cli: import (dry run)",
+      "type": "shell",
+      "command": ".\\import.ps1",
+      "args": [ "-Device", "desktop", "-DryRun" ],
+      "group": "build",
+      "problemMatcher": [ ]
+    },
+    {
+      "label": "cli: deploy",
+      "type": "shell",
+      "command": ".\\deploy.ps1",
+      "args": [ "-Device", "desktop" ],
+      "group": "build",
+      "problemMatcher": [ ]
+    }
+  ]
+}

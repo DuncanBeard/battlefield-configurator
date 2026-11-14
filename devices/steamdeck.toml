@@ -1,0 +1,18 @@
+# Steam Deck via Moonlight (streaming from desktop)
+# Resolution matches Deck display, but rendering happens on desktop GPU
+hostname = ""
+
+[GstRender]
+# 1280x800 @ 60Hz (Steam Deck native)
+ResolutionWidth = 1280
+ResolutionHeight = 800
+FullscreenRefreshRate = 60.000000
+FullscreenMode = 1
+FullscreenEnabled = 1
+
+# Cap to 60 for stable stream
+FrameRateLimit = 60.000000
+FrameRateLimitMenu = 30.000000
+
+# DLSS not needed at this res on desktop GPU - use DLAA for clean image
+NvidiaAntiAliasing = 2                 # DLAA at 800p is cheap on a desktop GPU

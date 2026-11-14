@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Editor
+.svelte-kit/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local
+.device
+
+# Browser test artifacts
+test-results/
+playwright-report/

@@ -1,0 +1,18 @@
+# GeForce Now - Cloud streaming target
+# Build on desktop, sync via OneDrive/cloud save
+hostname = ""
+
+[GstRender]
+# 1080p streaming (GFN caps at 1080p60 on free tier, 4K on Ultimate)
+ResolutionWidth = 3840
+ResolutionHeight = 2160
+FullscreenRefreshRate = 60.000000
+FullscreenMode = 1
+FullscreenEnabled = 1
+
+# GFN handles frame pacing; cap to stream target
+FrameRateLimit = 60.000000
+
+# DLSS Quality - GFN GPUs are powerful, don't need Performance mode
+NvidiaAntiAliasing = 1
+AMDNvidiaUpscalingQuality = 3          # Quality preset
