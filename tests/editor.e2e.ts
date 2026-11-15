@@ -59,6 +59,7 @@ test('edits export accurately, support undo, persist and stay isolated by device
 
 test('bounded controls reject invalid values and switches and sliders update exports', async ({ page }) => {
   await page.getByLabel('Settings group').selectOption('Display');
+  await page.getByLabel('Resolution preset').selectOption('custom');
   const width = page.getByRole('spinbutton', { name: 'Resolution width', exact: true });
   await width.fill('0');
   await width.press('Tab');
@@ -76,6 +77,101 @@ test('bounded controls reject invalid values and switches and sliders update exp
   expect(profile['GstRender.ResolutionWidth']).toBe('2560');
   expect(profile['GstRender.FilmGrain']).toBe('1');
   expect(profile['GstRender.SharpnessSlider']).toBe('0.42');
+});
+
+test('resolution presets update both dimensions atomically and preserve custom overrides', async ({ page }, testInfo) => {
+  await page.getByLabel('Settings group').selectOption('Display');
+  const preset = page.getByLabel('Resolution preset');
+  await expect(preset).toHaveValue('default');
+  await expect(preset.locator('option:checked')).toHaveText('Profile default (3840 x 2160)');
+  await preset.selectOption('1920x1080');
+  await expect(page.getByText('2 local edits', { exact: true })).toBeVisible();
+  expect(await exportedProfile(page)).toEqual({ ...original, 'GstRender.ResolutionWidth': '1920', 'GstRender.ResolutionHeight': '1080' });
+
+  await page.getByRole('button', { name: 'Undo edit', exact: true }).click();
+  await expect(preset).toHaveValue('default');
+  await expect(page.getByText('0 local edits', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Redo edit', exact: true }).click();
+  await expect(preset).toHaveValue('1920x1080');
+  await page.getByLabel('Search settings').fill('ResolutionHeight');
+  await expect(preset).toBeVisible();
+  await page.getByLabel('Search settings').fill('');
+
+  await preset.selectOption('custom');
+  const width = page.getByRole('spinbutton', { name: 'Resolution width', exact: true });
+  const height = page.getByRole('spinbutton', { name: 'Resolution height', exact: true });
+  await width.fill('2222.5');
+  await width.press('Tab');
+  await expect(page.getByRole('alert')).toHaveText('Enter a whole number of pixels.');
+  expect((await exportedProfile(page))['GstRender.ResolutionWidth']).toBe('1920');
+  await width.fill('2222');
+  await width.press('Tab');
+  await height.fill('1111');
+  await height.press('Tab');
+  expect(await exportedProfile(page)).toEqual({ ...original, 'GstRender.ResolutionWidth': '2222', 'GstRender.ResolutionHeight': '1111' });
+
+  await page.reload();
+  await page.getByLabel('Settings group').selectOption('Display');
+  await expect(preset).toHaveValue('custom');
+  await expect(width).toHaveValue('2222');
+  await expect(height).toHaveValue('1111');
+  await page.getByLabel('Device profile').selectOption('laptop');
+  await expect(preset.locator('option:checked')).toHaveText('Profile default (1920 x 1080)');
+  await page.getByLabel('Device profile').selectOption('desktop');
+  await expect(preset).toHaveValue('custom');
+  if (testInfo.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 1000 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('resolution-controls.png') });
+
+  await preset.selectOption('default');
+  await expect(page.getByText('0 local edits', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Undo edit', exact: true }).click();
+  await expect(preset).toHaveValue('custom');
+  await page.getByRole('button', { name: 'Reset Resolution', exact: true }).click();
+  await expect(preset).toHaveValue('default');
+  expect(await exportedProfile(page)).toEqual(original);
+});
+
+test('numeric diffs show game-facing values and retain raw search and export', async ({ page }, testInfo) => {
+  const imported = {
+    ...original,
+    'GstAudio.Volume': '0.500000',
+    'GstRender.ResolutionScale': '1.250000',
+    'GstRender.FrameRateLimit': '144.000000',
+    'GstRender.ResolutionHertz': '144.000000',
+    'GstRender.TextureQuality': '1',
+    'GstInput.MouseSensitivity': '0.025000',
+    'GstRender.NewFutureOption': '0.500000',
+  };
+  await importText(page, emitEntries(imported));
+  for (const [key, label] of [
+    ['GstAudio.Volume', '50%'],
+    ['GstRender.ResolutionScale', '125%'],
+    ['GstRender.FrameRateLimit', '144 FPS'],
+    ['GstRender.ResolutionHertz', '144 Hz'],
+    ['GstRender.TextureQuality', 'Medium'],
+    ['GstInput.MouseSensitivity', '0.025000'],
+  ]) await expect(page.locator(`[data-key="${key}"] .after-value`).getByText(label, { exact: true })).toBeVisible();
+  const volume = page.locator('[data-key="GstAudio.Volume"]');
+  await expect(volume.locator('.after-value').getByText('Raw: 0.500000', { exact: true })).toBeVisible();
+  await page.getByLabel('Search changes').fill('0.500000');
+  await expect(volume).toBeVisible();
+  await expect(page.locator('[data-key="GstRender.NewFutureOption"]')).toBeVisible();
+  await page.getByLabel('Search changes').fill('50%');
+  await expect(page.locator('.diff-row')).toHaveCount(1);
+  await page.getByLabel('Raw values', { exact: true }).check();
+  await expect(volume.locator('.after-value').getByText('0.500000', { exact: true })).toBeVisible();
+  await expect(volume.getByText('50%', { exact: true })).toHaveCount(0);
+  await page.getByLabel('Raw values', { exact: true }).uncheck();
+  await page.getByRole('button', { name: 'Unified diff', exact: true }).click();
+  await expect(volume.locator('.after-line').getByText('50%', { exact: true })).toBeVisible();
+  await page.getByLabel('Search changes').fill('');
+  await page.getByRole('button', { name: 'Side-by-side diff', exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('numeric-diff.png'), fullPage: true });
+  await page.getByLabel('Select visible changes').check();
+  await page.getByRole('button', { name: 'Apply selected', exact: true }).click();
+  expect(await exportedProfile(page)).toEqual(imported);
 });
 
 test('diff filters and selective imports handle additions, removals, empty and protected values', async ({ page }) => {
@@ -136,6 +232,7 @@ test('preset review is opt-in and does not revert unrelated edits made after pre
 
   await openPanel(page, /Graphics & display/);
   await page.getByLabel('Settings group').selectOption('Display');
+  await page.getByLabel('Resolution preset').selectOption('custom');
   await page.getByRole('spinbutton', { name: 'Resolution width', exact: true }).fill('2560');
   await page.getByRole('spinbutton', { name: 'Resolution width', exact: true }).press('Tab');
   await openPanel(page, /^Changes/);

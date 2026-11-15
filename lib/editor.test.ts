@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { combineBase, flatten, emitEntries, emit } from './build';
 import { applyEdits, changesToEdits, parseImportedProfile, profileChanges } from './editor';
-import { colorValue, displayValue, getSetting, profileColor, validateValue } from './settings';
+import { colorValue, displayValue, getResolutionPreset, getSetting, profileColor, resolutionPresets, validateValue } from './settings';
 import { recommendationEdits, recommendations } from './recommendations';
 import { parse } from './toml-parser';
 
@@ -79,5 +79,56 @@ describe('shared profile editor', () => {
     expect(profileColor(original)).toBe('#ff0022');
     expect(colorValue('#ff0022', original)).toBe(original);
     expect(Number(colorValue('#123456', original)) & 0xff).toBe(0x80);
+  });
+
+  test('numeric displays map documented scales and units without changing exported values', () => {
+    const examples = [
+      ['GstAudio.Volume', '0.500000', '50%'],
+      ['GstAudio.Volume_Radio_Driver', '0.290000', '29%'],
+      ['GstRender.MotionBlurWeapon', '0.000000', '0%'],
+      ['GstRender.SharpnessSlider', '0.425000', '42.5%'],
+      ['GstInput.GamepadLeftStickDeadzoneAxis', '0.060000', '6%'],
+      ['GstRender.ResolutionScale', '1.250000', '125%'],
+      ['GstRender.FixedResolutionScale', '100.000000', '100%'],
+      ['GstRender.DRSMinimumResolutionScale', '80.000000', '80%'],
+      ['GstRender.FrameRateLimit', '144.000000', '144 FPS'],
+      ['GstRender.FrameRateLimit', '0.000000', 'Uncapped'],
+      ['GstRender.FullscreenRefreshRate', '240.084000', '240.084 Hz'],
+      ['GstRender.ResolutionWidth', '3840', '3840 px'],
+      ['GstRender.FieldOfViewVertical', '89.000000', '89 deg'],
+      ['GstRender.HUD-Friendly', '-16776961', '#FF0000FF'],
+    ];
+    for (const [key, value, expected] of examples) {
+      expect(displayValue(key, value)).toBe(expected);
+      expect(parseImportedProfile(emitEntries({ [key]: value }))).toEqual({ [key]: value });
+    }
+    expect(displayValue('GstRender.HUD-Friendly', '-16777088')).toBe('#FF000080');
+  });
+
+  test('unverified, invalid and out-of-range numeric mappings remain raw', () => {
+    for (const [key, value] of [
+      ['GstInput.MouseSensitivity', '0.015000'],
+      ['GstInput.UniformSoldierAimingCoefficient', '1.330000'],
+      ['GstRender.UnknownOption', '0.500000'],
+      ['GstRender.TextureQuality', '99'],
+      ['GstAudio.Volume', '1.500000'],
+      ['GstAudio.Volume', '-1'],
+      ['GstAudio.Volume', 'NaN'],
+      ['GstAudio.Volume', 'Infinity'],
+      ['GstAudio.Volume', ' '],
+    ]) expect(displayValue(key, value)).toBe(value);
+  });
+
+  test('resolution presets are valid pairs and unlisted dimensions remain custom', () => {
+    expect(new Set(resolutionPresets.map((preset) => preset.value)).size).toBe(resolutionPresets.length);
+    for (const preset of resolutionPresets) {
+      expect(getResolutionPreset(preset.width, preset.height)).toBe(preset);
+      expect(validateValue(getSetting('GstRender.ResolutionWidth'), preset.width)).toBeNull();
+      expect(validateValue(getSetting('GstRender.ResolutionHeight'), preset.height)).toBeNull();
+    }
+    expect(getResolutionPreset('1920.000000', '1080')?.value).toBe('1920x1080');
+    expect(getResolutionPreset('2222', '1111')).toBeUndefined();
+    expect(getResolutionPreset(undefined, '1080')).toBeUndefined();
+    expect(validateValue(getSetting('GstRender.ResolutionWidth'), '1920.5')).toBe('Enter a whole number of pixels.');
   });
 });

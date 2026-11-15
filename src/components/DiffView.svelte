@@ -26,7 +26,7 @@
   const filtered = $derived(changes.filter((change) =>
     (section === 'all' || change.section === section) &&
     (kind === 'all' || change.kind === kind) &&
-    `${change.key} ${getSetting(change.key).label} ${displayValue(change.key, change.before)} ${displayValue(change.key, change.after)}`.toLowerCase().includes(search.toLowerCase().trim())
+    `${change.key} ${getSetting(change.key).label} ${displayValue(change.key, change.before)} ${displayValue(change.key, change.after)} ${change.before ?? ''} ${change.after ?? ''}`.toLowerCase().includes(search.toLowerCase().trim())
   ));
   const pageCount = $derived(Math.max(1, Math.ceil(filtered.length / pageSize)));
   const currentPage = $derived(Math.min(page, pageCount));
@@ -68,7 +68,7 @@
     <span class="absent">Empty value</span><code>""</code>
   {:else}
     <span class:raw-value={raw}>{raw ? value : displayValue(key, value)}</span>
-    {#if !raw && displayValue(key, value) !== value}<code>{value}</code>{/if}
+    {#if !raw && displayValue(key, value) !== value}<code>Raw: {value}</code>{/if}
   {/if}
 {/snippet}
 

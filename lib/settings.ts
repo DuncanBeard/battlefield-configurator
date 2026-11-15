@@ -3,6 +3,12 @@ export interface SettingOption {
   label: string;
 }
 
+export interface ResolutionPreset extends SettingOption {
+  width: string;
+  height: string;
+  group: string;
+}
+
 export interface SettingDefinition {
   label: string;
   group: string;
@@ -11,7 +17,9 @@ export interface SettingDefinition {
   min?: number;
   max?: number;
   step?: number;
+  integer?: boolean;
   unit?: string;
+  display?: { scale?: number; unit?: string; zeroLabel?: string };
   note?: string;
   advanced?: boolean;
   readonly?: boolean;
@@ -31,10 +39,38 @@ const select = (label: string, group: string, choices: SettingOption[], note?: s
 const toggle = (label: string, group: string, note?: string): SettingDefinition => ({ label, group, kind: 'toggle', note });
 const number = (label: string, group: string, min?: number, max?: number, step = 1, unit?: string): SettingDefinition => ({ label, group, kind: 'number', min, max, step, unit });
 const range = (label: string, group: string, min: number, max: number, step: number, unit?: string): SettingDefinition => ({ label, group, kind: 'range', min, max, step, unit });
+const percentage = (label: string, group: string, min = 0, max = 1): SettingDefinition => ({ ...range(label, group, min, max, 0.01), display: { scale: 100, unit: '%' } });
+const frameLimit = (label: string): SettingDefinition => ({ ...number(label, 'Frame rate', 0, 1000, 1, 'FPS'), display: { zeroLabel: 'Uncapped' } });
+const displayNumber = new Intl.NumberFormat('en-US', { useGrouping: false, maximumFractionDigits: 6 });
+const resolution = (width: number, height: number, group: string): ResolutionPreset => ({ value: `${width}x${height}`, label: `${width} x ${height}`, width: String(width), height: String(height), group });
+
+export const resolutionPresets: ResolutionPreset[] = [
+  resolution(1280, 720, '16:9'),
+  resolution(1366, 768, '16:9'),
+  resolution(1600, 900, '16:9'),
+  resolution(1920, 1080, '16:9'),
+  resolution(2560, 1440, '16:9'),
+  resolution(3840, 2160, '16:9'),
+  resolution(1280, 800, '16:10'),
+  resolution(1440, 900, '16:10'),
+  resolution(1680, 1050, '16:10'),
+  resolution(1920, 1200, '16:10'),
+  resolution(2560, 1600, '16:10'),
+  resolution(2560, 1080, 'Ultrawide'),
+  resolution(3440, 1440, 'Ultrawide'),
+  resolution(3840, 1600, 'Ultrawide'),
+  resolution(3840, 1080, 'Super ultrawide'),
+  resolution(5120, 1440, 'Super ultrawide'),
+];
+
+export function getResolutionPreset(width: string | undefined, height: string | undefined): ResolutionPreset | undefined {
+  if (width === undefined || height === undefined) return undefined;
+  return resolutionPresets.find((preset) => sameValue(preset.width, width) && sameValue(preset.height, height));
+}
 
 const render: Record<string, SettingDefinition> = {
-  ResolutionWidth: number('Resolution width', 'Display', 1, 16384, 1, 'px'),
-  ResolutionHeight: number('Resolution height', 'Display', 1, 16384, 1, 'px'),
+  ResolutionWidth: { ...number('Resolution width', 'Display', 1, 16384, 1, 'px'), integer: true },
+  ResolutionHeight: { ...number('Resolution height', 'Display', 1, 16384, 1, 'px'), integer: true },
   ResolutionHertz: number('Refresh rate', 'Display', 1, 1000, 0.001, 'Hz'),
   FullscreenRefreshRate: number('Fullscreen refresh rate', 'Display', 1, 1000, 0.001, 'Hz'),
   FullscreenScreen: number('Monitor index', 'Display', 0, undefined),
@@ -42,14 +78,14 @@ const render: Record<string, SettingDefinition> = {
   FullscreenMode: select('Window mode', 'Display', options('Borderless', 'Exclusive fullscreen')),
   WindowBordersEnable: toggle('Window borders', 'Display'),
   HighDynamicRangeMode: select('Dynamic range', 'Display', options('SDR', 'HDR'), 'HDR requires a compatible display and Windows HDR enabled.'),
-  Brightness: range('Brightness', 'Display', 0, 1, 0.01),
-  Contrast: range('Contrast', 'Display', 0, 1, 0.01),
+  Brightness: percentage('Brightness', 'Display'),
+  Contrast: percentage('Contrast', 'Display'),
   FrameRateLimiterEnable: toggle('Gameplay FPS limiter', 'Frame rate'),
-  FrameRateLimit: number('Gameplay FPS limit', 'Frame rate', 0, 1000, 1, 'FPS'),
+  FrameRateLimit: frameLimit('Gameplay FPS limit'),
   FrameRateLimiterMenuEnable: toggle('Menu FPS limiter', 'Frame rate'),
-  FrameRateLimitMenu: number('Menu FPS limit', 'Frame rate', 0, 1000, 1, 'FPS'),
+  FrameRateLimitMenu: frameLimit('Menu FPS limit'),
   FrameRateLimiterTabbedOutEnable: toggle('Background FPS limiter', 'Frame rate'),
-  FrameRateLimitTabbedOut: number('Background FPS limit', 'Frame rate', 0, 1000, 1, 'FPS'),
+  FrameRateLimitTabbedOut: frameLimit('Background FPS limit'),
   VSyncMode: select('Vertical sync', 'Frame rate', options('Off', 'On', 'Adaptive')),
   FutureFrameRendering: toggle('Future frame rendering', 'Frame rate', 'A longer render queue can improve throughput at the cost of latency.'),
   NvidiaLowLatency: select('NVIDIA Reflex', 'Frame rate', options('Off', 'On', 'On + Boost'), 'NVIDIA only. Boost can increase power use and heat.'),
@@ -60,7 +96,7 @@ const render: Record<string, SettingDefinition> = {
   NvidiaDLAAModel: select('DLAA model', 'Upscaling', options('CNN', 'Transformer')),
   AMDIntelAntiAliasing: select('AMD / Intel anti-aliasing', 'Upscaling', options('TAA', 'FSR', 'XeSS')),
   AMDNvidiaUpscalingQuality: select('Upscaling quality', 'Upscaling', options('Ultra performance', 'Performance', 'Balanced', 'Quality', 'Ultra quality')),
-  ResolutionScale: range('Render resolution scale', 'Upscaling', 0.5, 2, 0.01),
+  ResolutionScale: percentage('Render resolution scale', 'Upscaling', 0.5, 2),
   FixedResolutionScale: range('Fixed resolution scale', 'Upscaling', 25, 200, 1, '%'),
   DRSEnabled: toggle('Dynamic resolution', 'Upscaling'),
   DRSFrameRateTarget: number('Dynamic resolution target', 'Upscaling', 1, 1000, 1, 'FPS'),
@@ -84,8 +120,8 @@ const render: Record<string, SettingDefinition> = {
   PostProcessQuality: select('Post-processing quality', 'Quality', quality),
   ScreenSpaceReflections: toggle('Screen-space reflections', 'Quality'),
   AmbientOcclusion: select('Ambient occlusion', 'Quality', options('Off', 'SSAO', 'HBAO', 'HDAO', 'HBAO+')),
-  MotionBlurWorld: range('World motion blur', 'Camera', 0, 1, 0.01),
-  MotionBlurWeapon: range('Weapon motion blur', 'Camera', 0, 1, 0.01),
+  MotionBlurWorld: percentage('World motion blur', 'Camera'),
+  MotionBlurWeapon: percentage('Weapon motion blur', 'Camera'),
   FilmGrain: toggle('Film grain', 'Camera'),
   ChromaticAberration: toggle('Chromatic aberration', 'Camera'),
   Vignette: toggle('Vignette', 'Camera'),
@@ -94,12 +130,12 @@ const render: Record<string, SettingDefinition> = {
   FieldOfViewVertical: number('Vertical field of view', 'Camera', 1, 120, 1, 'deg'),
   FieldOfViewVerticalVehicle: number('Vehicle vertical FOV', 'Camera', 1, 120, 1, 'deg'),
   FieldOfViewScaleADS: toggle('ADS field-of-view scaling', 'Camera'),
-  SharpnessSlider: range('Sharpness', 'Camera', 0, 1, 0.01),
-  UIBrightness: range('Interface brightness', 'HUD', 0, 1, 0.01),
-  OptionHudBackgroundOpacity: range('HUD background opacity', 'HUD', 0, 1, 0.01),
+  SharpnessSlider: percentage('Sharpness', 'Camera'),
+  UIBrightness: percentage('Interface brightness', 'HUD'),
+  OptionHudBackgroundOpacity: percentage('HUD background opacity', 'HUD'),
   PerformanceOverlay: toggle('Performance overlay', 'HUD'),
-  SubtitleBackgroundAlpha: range('Subtitle background opacity', 'HUD', 0, 1, 0.01),
-  SubtitleTextAlpha: range('Subtitle text opacity', 'HUD', 0, 1, 0.01),
+  SubtitleBackgroundAlpha: percentage('Subtitle background opacity', 'HUD'),
+  SubtitleTextAlpha: percentage('Subtitle text opacity', 'HUD'),
   SubtitleUseOutline: toggle('Subtitle outlines', 'HUD'),
 };
 
@@ -108,18 +144,18 @@ const audio: Record<string, SettingDefinition> = {
   YourSoundSystem: select('Sound system', 'Output', options('Stereo speakers', 'Headphones', '5.1 surround', '7.1 surround')),
   AudioQuality: select('Audio quality', 'Output', quality),
   StereoBalance: range('Stereo balance', 'Output', -1, 1, 0.01),
-  Volume: range('Master volume', 'Mixer', 0, 1, 0.01),
-  Volume_Music: range('Music volume', 'Mixer', 0, 1, 0.01),
-  Volume_MusicInMenus: range('Menu music volume', 'Mixer', 0, 1, 0.01),
-  Volume_SFX: range('Effects volume', 'Mixer', 0, 1, 0.01),
-  Volume_UI: range('Interface volume', 'Mixer', 0, 1, 0.01),
-  Volume_VO: range('Voice-over volume', 'Mixer', 0, 1, 0.01),
-  Volume_Tinnitus: range('Tinnitus effect volume', 'Mixer', 0, 1, 0.01),
+  Volume: percentage('Master volume', 'Mixer'),
+  Volume_Music: percentage('Music volume', 'Mixer'),
+  Volume_MusicInMenus: percentage('Menu music volume', 'Mixer'),
+  Volume_SFX: percentage('Effects volume', 'Mixer'),
+  Volume_UI: percentage('Interface volume', 'Mixer'),
+  Volume_VO: percentage('Voice-over volume', 'Mixer'),
+  Volume_Tinnitus: percentage('Tinnitus effect volume', 'Mixer'),
   VoipOn: toggle('Voice chat', 'Voice chat'),
   VoipMode: select('Microphone mode', 'Voice chat', [{ value: '1', label: 'Push to talk' }, { value: '2', label: 'Open mic' }]),
-  VOIPVolume: range('Voice chat volume', 'Voice chat', 0, 1, 0.01),
-  MicrophoneVolume: range('Microphone gain', 'Voice chat', 0, 1, 0.01),
-  OpenMicThreshold: range('Open mic threshold', 'Voice chat', 0, 1, 0.01),
+  VOIPVolume: percentage('Voice chat volume', 'Voice chat'),
+  MicrophoneVolume: percentage('Microphone gain', 'Voice chat'),
+  OpenMicThreshold: percentage('Open mic threshold', 'Voice chat'),
   VoipAutoLevel: toggle('Automatic mic level', 'Voice chat'),
   STTEnabled: toggle('Speech to text', 'Accessibility'),
   TTSEnabled: toggle('Text to speech', 'Accessibility'),
@@ -146,7 +182,7 @@ const input: Record<string, SettingDefinition> = {
   SprintVaultOver: toggle('Auto-vault while sprinting', 'Movement'),
   QuickThrowGrenade: toggle('Quick throw grenade', 'Movement'),
   Vibration: toggle('Controller vibration', 'Controller'),
-  VibrationIntensity: range('Vibration intensity', 'Controller', 0, 1, 0.01),
+  VibrationIntensity: percentage('Vibration intensity', 'Controller'),
   GyroDisabled: toggle('Disable gyro', 'Controller'),
 };
 
@@ -167,9 +203,9 @@ export function getSetting(key: string, value = ''): SettingDefinition {
     return { label: 'Shader cache ' + field.slice('ShaderBundleVersion_'.length), group: 'Engine managed', kind: 'text', readonly: true, advanced: true };
   }
   if (section === 'GstRender' && field.startsWith('HUD-')) return { label: humanize(field.slice(4)), group: 'HUD colors', kind: 'color' };
-  if (section === 'GstAudio' && field.startsWith('Volume_')) return range(label, 'Mixer', 0, 1, 0.01);
+  if (section === 'GstAudio' && field.startsWith('Volume_')) return percentage(label, 'Mixer');
   if (section === 'GstAudio' && /^Subtitles(Commander|Enemies|Friendlies|ShowSpeakerName|Squad)$/.test(field)) return toggle(label, 'Accessibility');
-  if (section === 'GstInput' && /^Gamepad.*(Deadzone|MaxThreshold)/.test(field)) return range(label, 'Controller', 0, 1, 0.01);
+  if (section === 'GstInput' && /^Gamepad.*(Deadzone|MaxThreshold)/.test(field)) return percentage(label, 'Controller');
   if (section === 'GstInput' && /^(SoldierZoomSensitivity|VehicleSensitivity|Vertical.*Ratio)/.test(field)) return number(label, 'Aiming', 0, undefined, 0.01);
   if (section === 'GstKeyBinding') {
     const parts = field.split('.');
@@ -191,7 +227,20 @@ export function displayValue(key: string, value: string | null): string {
   if (value === '') return 'Empty value';
   const definition = getSetting(key, value);
   if (definition.kind === 'toggle' && ['0', '1'].some((option) => sameValue(option, value))) return Number(value) === 0 ? 'Off' : 'On';
-  return definition.options?.find((option) => sameValue(option.value, value))?.label ?? value;
+  const option = definition.options?.find((option) => sameValue(option.value, value));
+  if (option) return option.label;
+  const numeric = Number(value);
+  if (value.trim() === '' || !Number.isFinite(numeric)) return value;
+  if (definition.kind === 'color' && Number.isInteger(numeric) && numeric >= -2147483648 && numeric <= 4294967295) {
+    return '#' + (numeric >>> 0).toString(16).padStart(8, '0').toUpperCase();
+  }
+  if (definition.kind !== 'number' && definition.kind !== 'range') return value;
+  if (validateValue(definition, value)) return value;
+  if (numeric === 0 && definition.display?.zeroLabel) return definition.display.zeroLabel;
+  const unit = definition.display?.unit ?? definition.unit;
+  if (!unit) return value;
+  const formatted = displayNumber.format(numeric * (definition.display?.scale ?? 1));
+  return `${formatted}${unit === '%' ? '' : ' '}${unit}`;
 }
 
 export function validateValue(definition: SettingDefinition, value: string): string | null {
@@ -199,6 +248,7 @@ export function validateValue(definition: SettingDefinition, value: string): str
   if (definition.kind !== 'number' && definition.kind !== 'range') return null;
   const numeric = Number(value);
   if (value.trim() === '' || !Number.isFinite(numeric)) return 'Enter a finite number.';
+  if (definition.integer && !Number.isInteger(numeric)) return 'Enter a whole number of pixels.';
   if (definition.min !== undefined && numeric < definition.min) return `Minimum: ${definition.min}`;
   if (definition.max !== undefined && numeric > definition.max) return `Maximum: ${definition.max}`;
   return null;

@@ -51,7 +51,7 @@
     </div>
   {:else if definition.kind === 'number'}
     <div class="number-control">
-      <input id={controlId} aria-label={definition.label} type="number" min={definition.min} max={definition.max} step="any" value={value} aria-invalid={!!error} onchange={(event) => commit(event.currentTarget.value)} />
+      <input id={controlId} aria-label={definition.label} type="number" min={definition.min} max={definition.max} step={definition.integer ? 1 : 'any'} value={value} aria-invalid={!!error} onchange={(event) => commit(event.currentTarget.value)} />
       {#if definition.unit}<span class="unit">{definition.unit}</span>{/if}
     </div>
   {:else}

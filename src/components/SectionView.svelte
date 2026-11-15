@@ -1,15 +1,18 @@
 <script lang="ts">
   import { ChevronLeft, ChevronRight, Search, RotateCcw, LockKeyhole, Info, SlidersHorizontal } from 'lucide-svelte';
   import { displayValue, getSetting } from '$lib/settings';
+  import type { ProfileEdits } from '$lib/editor';
   import SettingControl from './SettingControl.svelte';
+  import ResolutionControl from './ResolutionControl.svelte';
 
-  let { name, values, overrideKeys, baseline = {}, editKeys = new Set<string>(), onvaluechange = () => {}, onreset = () => {} }: {
+  let { name, values, overrideKeys, baseline = {}, editKeys = new Set<string>(), onvaluechange = () => {}, onvalueschange = () => {}, onreset = () => {} }: {
     name: string;
     values: Record<string, string>;
     overrideKeys: Set<string>;
     baseline?: Record<string, string>;
     editKeys?: Set<string>;
     onvaluechange?: (key: string, value: string) => void;
+    onvalueschange?: (values: ProfileEdits) => void;
     onreset?: (key: string) => void;
   } = $props();
 
@@ -18,18 +21,25 @@
   let editedOnly = $state(false);
   let advanced = $state(false);
   let page = $state(1);
+  let resolutionReset = $state(0);
   const pageSize = 40;
 
-  const rows = $derived(Object.entries(values).map(([field, value]) => {
+  const pairedResolution = $derived(name === 'GstRender' && values.ResolutionWidth !== undefined && values.ResolutionHeight !== undefined);
+  const rows = $derived(Object.entries(values).filter(([field]) => !pairedResolution || field !== 'ResolutionHeight').map(([field, value]) => {
     const key = `${name}.${field}`;
-    return { key, field, value, definition: getSetting(key, value) };
+    const isResolution = pairedResolution && field === 'ResolutionWidth';
+    const keys = isResolution ? ['GstRender.ResolutionWidth', 'GstRender.ResolutionHeight'] : [key];
+    const definition = getSetting(key, value);
+    return { key, field, value, keys, isResolution, definition: isResolution
+      ? { ...definition, label: 'Resolution', note: 'Available game resolutions depend on the connected display and fullscreen mode. Profile default restores the active source profile.' }
+      : definition };
   }));
   const groupNames = $derived([...new Set(rows.filter((row) => advanced || !row.definition.advanced).map((row) => row.definition.group))]);
   const filtered = $derived(rows.filter((row) =>
     (advanced || !row.definition.advanced) &&
     (group === 'all' || row.definition.group === group) &&
-    (!editedOnly || editKeys.has(row.key)) &&
-    `${row.key} ${row.definition.label} ${row.definition.group} ${displayValue(row.key, row.value)}`.toLowerCase().includes(search.toLowerCase().trim())
+    (!editedOnly || row.keys.some((key) => editKeys.has(key))) &&
+    `${row.keys.join(' ')} ${row.definition.label} ${row.definition.group} ${row.value} ${displayValue(row.key, row.value)} ${row.isResolution ? values.ResolutionHeight : ''}`.toLowerCase().includes(search.toLowerCase().trim())
   ));
   const pageCount = $derived(Math.max(1, Math.ceil(filtered.length / pageSize)));
   const currentPage = $derived(Math.min(page, pageCount));
@@ -62,25 +72,37 @@
   <section class="settings-group" aria-label={groupName}>
     <h2>{groupName}<span>{filtered.filter((row) => row.definition.group === groupName).length}</span></h2>
     {#each visible.filter((row) => row.definition.group === groupName) as row (row.key)}
-      {@const edited = editKeys.has(row.key)}
+      {@const edited = row.keys.some((key) => editKeys.has(key))}
+      {@const overridden = row.keys.some((key) => overrideKeys.has(key))}
       <div class="setting-row" class:edited data-setting={row.key}>
         <div class="setting-name">
           <div class="label-line">
             {#if row.definition.readonly}<LockKeyhole size={13} aria-label="Engine managed" />{/if}
-            <label for={`setting-${row.key}`}>{row.definition.label}</label>
+            <label for={row.isResolution ? 'setting-GstRender.Resolution' : `setting-${row.key}`}>{row.definition.label}</label>
             {#if row.definition.note}<button type="button" class="setting-note" title={row.definition.note} aria-label={row.definition.note}><Info size={14} /></button>{/if}
           </div>
-          <code>{row.field}</code>
+          <code>{row.isResolution ? 'ResolutionWidth / ResolutionHeight' : row.field}</code>
           <div class="origin">
-            <span class:override={overrideKeys.has(row.key)}>{row.definition.readonly ? 'Engine managed' : overrideKeys.has(row.key) ? 'Device override' : 'Base config'}</span>
+            <span class:override={overridden}>{row.definition.readonly ? 'Engine managed' : overridden ? 'Device override' : 'Base config'}</span>
             {#if edited}<span class="edited-label">Edited</span>{/if}
           </div>
         </div>
         <div class="value-area">
-          <SettingControl settingKey={row.key} value={row.value} definition={row.definition} onchange={(value) => onvaluechange(row.key, value)} />
-          {#if edited}<span class="original-value">Original: {displayValue(row.key, baseline[row.field] ?? null)}</span>{/if}
+          {#if row.isResolution}
+            {#key resolutionReset}
+              <ResolutionControl width={values.ResolutionWidth} height={values.ResolutionHeight} defaultWidth={baseline.ResolutionWidth} defaultHeight={baseline.ResolutionHeight} onchange={(width, height) => onvalueschange({ 'GstRender.ResolutionWidth': width, 'GstRender.ResolutionHeight': height })} />
+            {/key}
+          {:else}
+            <SettingControl settingKey={row.key} value={row.value} definition={row.definition} onchange={(value) => onvaluechange(row.key, value)} />
+          {/if}
+          {#if edited}<span class="original-value">Original: {displayValue(row.key, baseline[row.field] ?? null)}{row.isResolution ? ` x ${displayValue('GstRender.ResolutionHeight', baseline.ResolutionHeight ?? null)}` : ''}</span>{/if}
         </div>
-        <button class="icon-button reset-setting" disabled={!edited} onclick={() => onreset(row.key)} aria-label={`Reset ${row.definition.label}`} title={`Reset ${row.definition.label}`}><RotateCcw size={15} /></button>
+        <button class="icon-button reset-setting" disabled={!edited} onclick={() => {
+          if (row.isResolution) {
+            onvalueschange({ 'GstRender.ResolutionWidth': baseline.ResolutionWidth ?? null, 'GstRender.ResolutionHeight': baseline.ResolutionHeight ?? null });
+            resolutionReset++;
+          } else onreset(row.key);
+        }} aria-label={`Reset ${row.definition.label}`} title={`Reset ${row.definition.label}`}><RotateCcw size={15} /></button>
       </div>
     {/each}
   </section>

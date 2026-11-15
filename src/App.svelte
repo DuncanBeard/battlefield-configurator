@@ -111,7 +111,13 @@
   }
 
   function changeValue(key: string, value: string) {
-    stage({ [key]: baseline[key] !== undefined && sameValue(baseline[key], value) ? baseline[key] : value });
+    changeValues({ [key]: value });
+  }
+
+  function changeValues(values: ProfileEdits) {
+    stage(Object.fromEntries(Object.entries(values).map(([key, value]) => [
+      key, value !== null && baseline[key] !== undefined && sameValue(baseline[key], value) ? baseline[key] : value,
+    ])));
   }
 
   function undo() {
@@ -229,7 +235,7 @@
         {/key}
       {:else}
         {#key `${selectedDevice}-${activePanel}`}
-          <SectionView name={activePanel} values={valuesInSection(entries, activePanel)} baseline={valuesInSection(baseline, activePanel)} {overrideKeys} {editKeys} onvaluechange={changeValue} onreset={(key) => stage({ [key]: baseline[key] ?? null })} />
+          <SectionView name={activePanel} values={valuesInSection(entries, activePanel)} baseline={valuesInSection(baseline, activePanel)} {overrideKeys} {editKeys} onvaluechange={changeValue} onvalueschange={changeValues} onreset={(key) => stage({ [key]: baseline[key] ?? null })} />
         {/key}
       {/if}
     </main>
