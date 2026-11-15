@@ -1,0 +1,188 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: battlefield-configurator
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bf6-config
+  namespace: battlefield-configurator
+data:
+  BETTER_AUTH_URL: http://localhost:8080
+  DATABASE_PATH: /data/configurator.sqlite
+  TRUST_PROXY: "true"
+  LOCAL_AUTH_ENABLED: "false"
+  PORT: "3000"
+  api.conf: |
+    location /api/ {
+        client_max_body_size 280k;
+        proxy_pass http://bf6-api:3000;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-BF6-Client-IP $remote_addr;
+        proxy_set_header X-Forwarded-For "";
+        proxy_set_header X-Forwarded-Host "";
+        proxy_set_header X-Forwarded-Proto "";
+        proxy_buffering off;
+        proxy_intercept_errors off;
+        add_header Cache-Control "no-store" always;
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bf6-api-headless
+  namespace: battlefield-configurator
+spec:
+  clusterIP: None
+  selector:
+    app: bf6-api
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bf6-api
+  namespace: battlefield-configurator
+spec:
+  selector:
+    app: bf6-api
+  ports:
+    - port: 3000
+      targetPort: 3000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: bf6-api
+  namespace: battlefield-configurator
+spec:
+  serviceName: bf6-api-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bf6-api
+  template:
+    metadata:
+      labels:
+        app: bf6-api
+    spec:
+      terminationGracePeriodSeconds: 30
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: api
+          image: bf6-configurator-api:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - configMapRef:
+                name: bf6-config
+            - secretRef:
+                name: bf6-auth
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          startupProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 3000
+            failureThreshold: 30
+            periodSeconds: 2
+          readinessProbe:
+            httpGet:
+              path: /api/health/ready
+              port: 3000
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /api/health/live
+              port: 3000
+            periodSeconds: 15
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bf6-web
+  namespace: battlefield-configurator
+spec:
+  selector:
+    app: bf6-web
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bf6-web
+  namespace: battlefield-configurator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bf6-web
+  template:
+    metadata:
+      labels:
+        app: bf6-web
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: web
+          image: bf6-configurator:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+          volumeMounts:
+            - name: proxy
+              mountPath: /etc/nginx/bf6-api.conf
+              subPath: api.conf
+              readOnly: true
+      volumes:
+        - name: proxy
+          configMap:
+            name: bf6-config

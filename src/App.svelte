@@ -15,6 +15,12 @@
   import DiffView from './components/DiffView.svelte';
   import Recommendations from './components/Recommendations.svelte';
   import gameImage from './battlefield-header.jpg';
+  import SavedConfigs from './components/SavedConfigs.svelte';
+  import LocalAuth from './components/LocalAuth.svelte';
+  import { api, expectAccount, getAccount, saveConfig, savedConfig, signIn } from './lib/cloud';
+  import type { Account } from './lib/cloud';
+  import { isRecord, validateEntries } from '$lib/saved-configs';
+  import type { SavedConfig } from '$lib/saved-configs';
 
   type Comparison = { id: number; label: string } & (
     { kind: 'import'; entries: ProfileEntries } | { kind: 'preset'; patch: ProfileEdits }
@@ -25,6 +31,18 @@
   const base = combineBase(Object.values(baseConfigs));
   const sectionIcons: Record<string, typeof Monitor> = { GstRender: Monitor, GstAudio: Headphones, GstInput: MousePointer2, GstKeyBinding: Keyboard };
   const canDeploy = isTauri() || 'showDirectoryPicker' in window;
+  const accountsEnabled = import.meta.env.VITE_ENABLE_ACCOUNTS === 'true' && !isTauri();
+  type CloudWorkspace = { config: SavedConfig; base: ProfileEntries; edits: ProfileEdits; undo: ProfileEdits[]; redo: ProfileEdits[] };
+  let account = $state<Account | null>(null);
+  let providers = $state<string[]>([]);
+  let localAuthEnabled = $state(false);
+  let showLocalAuth = $state(false);
+  let cloud = $state<CloudWorkspace | null>(null);
+  let accountReady = $state(false);
+  let accountBusy = $state(false);
+  let cloudPersistenceEnabled = $state(true);
+  let listRefresh = $state(0);
+  let sessionRequest = 0;
 
   let selectedDevice = $state(deviceNames.includes('desktop') ? 'desktop' : 'base');
   let activePanel = $state('GstRender');
@@ -41,8 +59,10 @@
   let diffMode = $state<'draft' | 'comparison'>('draft');
 
   const device = $derived(selectedDevice === 'base' ? {} : deviceConfigs[selectedDevice] ?? {});
-  const baseline = $derived(flatten(merge(base, device)));
-  const edits = $derived(drafts[selectedDevice] ?? {});
+  const baseline = $derived(cloud?.base ?? flatten(merge(base, device)));
+  const edits = $derived(cloud?.edits ?? drafts[selectedDevice] ?? {});
+  const currentUndo = $derived(cloud?.undo ?? undoHistory[selectedDevice] ?? []);
+  const currentRedo = $derived(cloud?.redo ?? redoHistory[selectedDevice] ?? []);
   const entries = $derived(applyEdits(baseline, edits));
   const profileText = $derived(emitEntries(entries));
   const draftChanges = $derived(profileChanges(baseline, entries));
@@ -52,7 +72,140 @@
   const displayedChanges = $derived(diffMode === 'comparison' && comparison
     ? profileChanges(entries, comparison.kind === 'preset' ? applyEdits(entries, comparison.patch) : comparison.entries)
     : draftChanges);
-  const pageTitle = $derived(activePanel === 'recommendations' ? 'Community recommendations' : activePanel === 'changes' ? 'Review changes' : sectionNames[activePanel] ?? humanize(activePanel));
+  const cloudDirty = $derived(cloud !== null && emitEntries(cloud.config.entries) !== profileText);
+  const pageTitle = $derived(activePanel === 'saved' ? 'Saved configs' : activePanel === 'recommendations' ? 'Community recommendations' : activePanel === 'changes' ? 'Review changes' : sectionNames[activePanel] ?? humanize(activePanel));
+
+  const accountStorageKey = (id: string) => `bf6-configurator.workspace.v2.user:${id}`;
+
+  function restoreCloud(id: string) {
+    cloudPersistenceEnabled = true;
+    try {
+      const raw = localStorage.getItem(accountStorageKey(id));
+      if (!raw) return;
+      const parsed: unknown = JSON.parse(raw);
+      if (!isRecord(parsed) || parsed.version !== 2) throw new Error('Invalid saved account draft.');
+      cloud = { config: savedConfig(parsed.config), base: validateEntries(parsed.entries), edits: {}, undo: [], redo: [] };
+    } catch {
+      cloudPersistenceEnabled = false;
+      notice = { message: 'Your account draft could not be restored. Existing data has not been overwritten; export before closing.', error: true };
+    }
+  }
+
+  async function refreshAccount(restore = false) {
+    const request = ++sessionRequest;
+    try {
+      const next = await getAccount();
+      if (request !== sessionRequest) return;
+      if (next?.id !== account?.id) {
+        cloud = null;
+        account = next;
+        expectAccount(next?.id ?? null);
+        if (restore && next) restoreCloud(next.id);
+        if (!restore) notice = { message: 'Your sign-in session changed. Previous local account drafts remain on this device; sign in again to recover them.', error: true };
+        if (!next && activePanel === 'saved') activePanel = 'GstRender';
+      }
+      accountReady = true;
+    } catch (error) { reportError(error); }
+  }
+
+  onMount(() => {
+    if (!accountsEnabled) return;
+    let alive = true;
+    void (async () => {
+      try {
+        const data = await api('providers');
+        if (!isRecord(data) || !Array.isArray(data.providers) || !data.providers.every((provider) => typeof provider === 'string' && ['google', 'github', 'microsoft'].includes(provider))) throw new Error('Invalid provider configuration.');
+        if (!alive) return;
+        providers = data.providers;
+        if (typeof data.localAuthEnabled !== 'boolean') throw new Error('Invalid local authentication configuration.');
+        localAuthEnabled = data.localAuthEnabled;
+        await refreshAccount(true);
+        if (new URLSearchParams(location.search).has('signinError')) {
+          notice = { message: 'Sign-in failed or was cancelled. Try your original provider; accounts are not automatically linked.', error: true };
+          history.replaceState(null, '', location.pathname);
+        }
+      } catch (error) { if (alive) reportError(error); }
+    })();
+    const onFocus = () => { void refreshAccount(); };
+    window.addEventListener('focus', onFocus);
+    return () => { alive = false; window.removeEventListener('focus', onFocus); };
+  });
+
+  $effect(() => {
+    if (!account || !cloud || !cloudPersistenceEnabled) return;
+    try {
+      localStorage.setItem(accountStorageKey(account.id), JSON.stringify({ version: 2, config: cloud.config, entries }));
+    } catch {
+      notice = { message: 'Account draft could not be stored locally. Save to your account or export before closing.', error: true };
+    }
+  });
+
+  function confirmReplace() {
+    return !(cloud ? cloudDirty : draftChanges.length > 0) || window.confirm('Replace the current unsaved work? Cancel to save or export it first.');
+  }
+
+  function loadCloud(config: SavedConfig) {
+    if (!confirmReplace()) return;
+    cloud = { config, base: { ...config.entries }, edits: {}, undo: [], redo: [] };
+    comparison = null;
+    diffMode = 'draft';
+    activePanel = 'GstRender';
+    notice = { message: `Loaded "${config.name}". Nothing has been deployed to the game.`, error: false };
+  }
+
+  async function handleSave(asNew = false) {
+    if (!account) return;
+    const name = asNew || !cloud ? window.prompt('Config name', cloud?.config.name ?? selectedDevice) : cloud.config.name;
+    if (name === null) return;
+    const owner = account.id;
+    const workingCopy = cloud;
+    const snapshot = { ...entries };
+    accountBusy = true;
+    try {
+      const config = await saveConfig({ name, deviceKey: cloud?.config.deviceKey ?? selectedDevice, schemaVersion: 1, entries: snapshot }, asNew ? undefined : cloud?.config);
+      if (account?.id !== owner) return;
+      if (workingCopy && cloud?.config.id === workingCopy.config.id && !asNew) cloud = { ...cloud, config };
+      else {
+        cloud = { config, base: snapshot, edits: changesToEdits(profileChanges(snapshot, entries)), undo: [], redo: [] };
+      }
+      listRefresh++;
+      notice = { message: `Saved "${config.name}" to your account.`, error: false };
+    } catch (error) { reportError(error); }
+    finally { accountBusy = false; }
+  }
+
+  async function handleSignIn(provider: string) {
+    accountBusy = true;
+    try { await signIn(provider); }
+    catch (error) { reportError(error); }
+    finally { accountBusy = false; }
+  }
+
+  async function handleSignOut() {
+    if (!account || (cloudDirty && !window.confirm('Sign out and clear this account draft from the browser? Cancel to save or export it first.'))) return;
+    accountBusy = true;
+    sessionRequest++;
+    const id = account.id;
+    try {
+      await api('auth/sign-out', 'POST', {});
+      cloud = null;
+      account = null;
+      expectAccount(null);
+      activePanel = 'GstRender';
+      localStorage.removeItem(accountStorageKey(id));
+      notice = { message: 'Signed out. Your anonymous local drafts are unchanged.', error: false };
+    } catch (error) { reportError(error); }
+    finally { accountBusy = false; }
+  }
+
+  function returnToLocal() {
+    if (!confirmReplace()) return;
+    try {
+      if (account) localStorage.removeItem(accountStorageKey(account.id));
+      cloud = null;
+      switchDevice();
+    } catch (error) { reportError(error); }
+  }
 
   onMount(() => {
     try {
@@ -95,6 +248,10 @@
 
   function saveEdits(next: ProfileEdits) {
     if (JSON.stringify(next) === JSON.stringify(edits)) return;
+    if (cloud) {
+      cloud = { ...cloud, edits: next, undo: [...cloud.undo.slice(-39), { ...edits }], redo: [] };
+      return;
+    }
     undoHistory = { ...undoHistory, [selectedDevice]: [...(undoHistory[selectedDevice] ?? []).slice(-39), { ...edits }] };
     redoHistory = { ...redoHistory, [selectedDevice]: [] };
     drafts = { ...drafts, [selectedDevice]: next };
@@ -121,6 +278,11 @@
   }
 
   function undo() {
+    if (cloud) {
+      const previous = cloud.undo.at(-1);
+      if (previous) cloud = { ...cloud, edits: previous, undo: cloud.undo.slice(0, -1), redo: [...cloud.redo, { ...edits }] };
+      return;
+    }
     const history = undoHistory[selectedDevice] ?? [];
     if (!history.length) return;
     redoHistory = { ...redoHistory, [selectedDevice]: [...(redoHistory[selectedDevice] ?? []), { ...edits }] };
@@ -129,6 +291,11 @@
   }
 
   function redo() {
+    if (cloud) {
+      const next = cloud.redo.at(-1);
+      if (next) cloud = { ...cloud, edits: next, redo: cloud.redo.slice(0, -1), undo: [...cloud.undo, { ...edits }] };
+      return;
+    }
     const history = redoHistory[selectedDevice] ?? [];
     if (!history.length) return;
     undoHistory = { ...undoHistory, [selectedDevice]: [...(undoHistory[selectedDevice] ?? []), { ...edits }] };
@@ -194,7 +361,7 @@
   <aside class="sidebar">
     <div class="brand"><Shield size={25} strokeWidth={1.5} /><div><strong>BATTLEFIELD 6</strong><span>CONFIGURATOR</span></div></div>
     <a class="game-art" href="https://store.steampowered.com/app/2807960/Battlefield_6/" target="_blank" rel="noopener noreferrer" title="Battlefield 6 on Steam"><img src={gameImage} alt="Battlefield 6" width="460" height="215" /></a>
-    <div class="profile-picker"><label for="device">ACTIVE PROFILE</label><select id="device" aria-label="Device profile" bind:value={selectedDevice} onchange={switchDevice} disabled={!!busy || !ready}><option value="base">Base only</option>{#each deviceNames as name}<option value={name}>{humanize(name)}</option>{/each}</select></div>
+    <div class="profile-picker"><label for="device">ACTIVE PROFILE</label><select id="device" aria-label="Device profile" bind:value={selectedDevice} onchange={switchDevice} disabled={!!busy || !ready || !!cloud || accountBusy}><option value="base">Base only</option>{#each deviceNames as name}<option value={name}>{humanize(name)}</option>{/each}</select>{#if cloud}<button onclick={returnToLocal} disabled={accountBusy}>Return to local profiles</button>{/if}</div>
     <nav aria-label="Configuration sections">
       <div class="nav-label">SETTINGS</div>
       {#each sections as section}
@@ -202,6 +369,7 @@
         <button class:active={activePanel === section} aria-current={activePanel === section ? 'page' : undefined} onclick={() => activePanel = section}><Icon size={17} /><span>{sectionNames[section] ?? humanize(section)}</span><small>{Object.keys(valuesInSection(entries, section)).length}</small></button>
       {/each}
       <div class="nav-label tools-label">WORKSPACE</div>
+      {#if accountsEnabled && account}<button class:active={activePanel === 'saved'} aria-current={activePanel === 'saved' ? 'page' : undefined} onclick={() => activePanel = 'saved'}><Users size={17} /><span>Saved configs</span></button>{/if}
       <button class:active={activePanel === 'recommendations'} aria-current={activePanel === 'recommendations' ? 'page' : undefined} onclick={() => activePanel = 'recommendations'}><Users size={17} /><span>Community guides</span></button>
       <button class:active={activePanel === 'changes'} aria-current={activePanel === 'changes' ? 'page' : undefined} onclick={() => { activePanel = 'changes'; diffMode = comparison ? 'comparison' : 'draft'; }}><GitCompareArrows size={17} /><span>Changes</span><small class:has-changes={draftChanges.length > 0}>{draftChanges.length}</small></button>
     </nav>
@@ -212,6 +380,18 @@
     <header class="topbar">
       <div class="workspace-title"><span class="workspace-dot"></span><strong>Profile workspace</strong><span class="profile-breadcrumb">/ {selectedDevice}</span></div>
       <div class="topbar-actions">
+        {#if accountsEnabled}
+          {#if account}
+            <span class="account-name">{account.name}</span>
+            <button onclick={() => handleSave()} disabled={accountBusy || !cloud || !cloudDirty}>Save</button>
+            <button onclick={() => handleSave(true)} disabled={accountBusy || !ready}>Save as</button>
+            <button onclick={handleSignOut} disabled={accountBusy}>Sign out</button>
+          {:else}
+            {#if localAuthEnabled}<button onclick={() => showLocalAuth = !showLocalAuth} disabled={accountBusy || !accountReady}>Local test sign-in</button>{/if}
+            {#each providers as provider}<button onclick={() => handleSignIn(provider)} disabled={accountBusy || !accountReady}>Sign in with {provider === 'github' ? 'GitHub' : humanize(provider)}</button>{/each}
+            {#if accountReady && !providers.length && !localAuthEnabled}<span class="account-name">Sign-in not configured</span>{/if}
+          {/if}
+        {/if}
         <button onclick={handleImport} disabled={!!busy || !ready}><Upload size={15} />{busy === 'import' ? 'Opening...' : 'Import profile'}</button>
         {#if canDeploy}<button onclick={handleDeploy} disabled={!!busy || !ready}><HardDrive size={15} />{busy === 'deploy' ? 'Writing...' : 'Deploy to game'}</button>{/if}
         <button class="primary" onclick={() => { downloadText('PROFSAVE_profile', profileText); notice = { message: 'PROFSAVE_profile exported from the current draft.', error: false }; }} disabled={!ready}><Download size={15} />Export profile</button>
@@ -220,13 +400,29 @@
 
     <main>
       {#if notice}<div class="notice" class:error={notice.error} role={notice.error ? 'alert' : 'status'}>{#if notice.error}<AlertCircle size={17} />{:else}<CheckCircle2 size={17} />{/if}<span>{notice.message}</span><button class="icon-button" aria-label="Dismiss message" title="Dismiss" onclick={() => notice = null}><X size={15} /></button></div>{/if}
+      {#if accountsEnabled && localAuthEnabled && showLocalAuth && !account}
+        <LocalAuth oncancel={() => showLocalAuth = false} onauthenticated={async () => {
+          await refreshAccount();
+          if (account) {
+            showLocalAuth = false;
+            notice = { message: 'Signed in to your local test account. Your anonymous draft has not been uploaded.', error: false };
+          }
+        }} />
+      {/if}
 
       <div class="page-heading">
         <div><div class="eyebrow">{selectedDevice === 'base' ? 'BASE CONFIGURATION' : `${humanize(selectedDevice).toUpperCase()} / DEVICE PROFILE`}</div><h1>{pageTitle}</h1></div>
-        <div class="edit-actions"><span class="edit-count" class:dirty={draftChanges.length > 0}>{draftChanges.length} local edits</span><div class="history-actions"><button class="icon-button" aria-label="Undo edit" title="Undo edit" disabled={!undoHistory[selectedDevice]?.length} onclick={undo}><Undo2 size={16} /></button><button class="icon-button" aria-label="Redo edit" title="Redo edit" disabled={!redoHistory[selectedDevice]?.length} onclick={redo}><Redo2 size={16} /></button><button class="icon-button" aria-label="Reset profile edits" title="Reset profile edits" disabled={!draftChanges.length} onclick={() => { if (window.confirm(`Reset all ${draftChanges.length} local edits for ${selectedDevice}?`)) saveEdits({}); }}><RotateCcw size={16} /></button></div></div>
+        <div class="edit-actions"><span class="edit-count" class:dirty={draftChanges.length > 0}>{draftChanges.length} local edits</span><div class="history-actions"><button class="icon-button" aria-label="Undo edit" title="Undo edit" disabled={!currentUndo.length} onclick={undo}><Undo2 size={16} /></button><button class="icon-button" aria-label="Redo edit" title="Redo edit" disabled={!currentRedo.length} onclick={redo}><Redo2 size={16} /></button><button class="icon-button" aria-label="Reset profile edits" title="Reset profile edits" disabled={!draftChanges.length} onclick={() => { if (window.confirm(`Reset all ${draftChanges.length} local edits for ${selectedDevice}?`)) saveEdits({}); }}><RotateCcw size={16} /></button></div></div>
       </div>
 
-      {#if activePanel === 'recommendations'}
+      {#if activePanel === 'saved' && account}
+        {#key account.id}
+          <SavedConfigs refresh={listRefresh} locked={accountBusy} onload={loadCloud}
+            onrename={(config) => { if (cloud?.config.id === config.id) cloud = { ...cloud, config }; }}
+            ondelete={(id) => { if (cloud?.config.id === id) { returnToLocal(); } }}
+            onerror={reportError} />
+        {/key}
+      {:else if activePanel === 'recommendations'}
         <Recommendations {entries} onpreview={previewRecommendation} />
       {:else if activePanel === 'changes'}
         <div class="comparison-picker"><label for="comparison">Comparison</label><select id="comparison" aria-label="Comparison" bind:value={diffMode}><option value="draft">Source config / Local draft</option>{#if comparison}<option value="comparison">Local draft / {comparison.label}</option>{/if}</select></div>
@@ -240,7 +436,7 @@
       {/if}
     </main>
 
-    <footer><span><span class="save-dot" class:warning={storageState === 'Session only'}></span>{storageState}</span><span><code>PROFSAVE_profile</code><span class="footer-count">{Object.keys(entries).length} keys</span></span></footer>
+    <footer><span><span class="save-dot" class:warning={storageState === 'Session only' || cloudDirty}></span>{cloud ? `${cloud.config.name}: ${cloudDirty ? 'Unsaved account changes' : 'Saved to account'}` : storageState}</span><span><code>PROFSAVE_profile</code><span class="footer-count">{Object.keys(entries).length} keys</span></span></footer>
   </div>
 </div>
 
@@ -274,6 +470,7 @@
   .workspace-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 1px; }
   .profile-breadcrumb { color: var(--muted); }
   .topbar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .account-name { align-self: center; font-size: 11px; max-width: 180px; overflow-wrap: anywhere; }
   main { width: 100%; max-width: 1420px; margin: 0 auto; padding: 34px 40px 40px; flex: 1; }
   .page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; margin-bottom: 32px; }
   .eyebrow { font-family: var(--mono); font-size: 9px; color: var(--muted); margin-bottom: 8px; }

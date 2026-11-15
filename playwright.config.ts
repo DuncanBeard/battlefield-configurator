@@ -17,9 +17,14 @@ export default defineConfig({
     { name: 'desktop', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 1000 } } },
     { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
-  webServer: process.env.BF6_TEST_URL ? undefined : {
+  webServer: process.env.BF6_TEST_URL ? undefined : [{
+    command: 'bun run tests/server.ts',
+    url: 'http://127.0.0.1:1423/api/health/ready',
+    reuseExistingServer: false,
+  }, {
     command: 'bun run dev --host 127.0.0.1 --port 1422',
     url: 'http://127.0.0.1:1422',
+    env: { BF6_API_TARGET: 'http://127.0.0.1:1423', VITE_ENABLE_ACCOUNTS: 'true' },
     reuseExistingServer: false,
-  },
+  }],
 });

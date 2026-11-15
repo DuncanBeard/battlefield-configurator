@@ -1,0 +1,29 @@
+services:
+  web:
+    build:
+      context: .
+      args:
+        VITE_ENABLE_ACCOUNTS: "true"
+    volumes:
+      - ./docker/api.conf:/etc/nginx/bf6-api.conf:ro
+    depends_on:
+      bf6-api:
+        condition: service_healthy
+  bf6-api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    image: bf6-configurator-api:latest
+    env_file: .env
+    environment:
+      DATABASE_PATH: /data/configurator.sqlite
+      TRUST_PROXY: "true"
+    volumes:
+      - config-data:/data
+    restart: unless-stopped
+    stop_grace_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp
+volumes:
+  config-data:

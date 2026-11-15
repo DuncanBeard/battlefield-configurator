@@ -14,6 +14,7 @@ export default defineConfig({
   // Vite options tailored for Tauri dev:
   clearScreen: false,
   server: {
+    proxy: process.env.BF6_API_TARGET ? { '/api': { target: process.env.BF6_API_TARGET } } : undefined,
     port: 1420,
     strictPort: true,
     host: host || false,

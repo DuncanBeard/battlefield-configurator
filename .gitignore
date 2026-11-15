@@ -19,6 +19,13 @@ Thumbs.db
 
 # Local
 .device
+.env
+.env.*
+!.env.example
+data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
 
 # Browser test artifacts
 test-results/
